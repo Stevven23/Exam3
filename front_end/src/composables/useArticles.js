@@ -1,4 +1,4 @@
-import { ref, onMounted } from 'vue'
+import { ref, computed } from 'vue'
 import jsPDF from 'jspdf'
 
 export function useArticles() {
@@ -6,43 +6,16 @@ export function useArticles() {
   const articles = ref([])
   const loading = ref(false)
   const error = ref('')
+  const cart = ref([])
 
-  const fetchProducts = async () => {
-    loading.value = true
-    error.value = ''
-    articles.value = []
-
-    try {
-      const response = await fetch('https://exam3-back.onrender.com/api/total')
-      if (!response.ok) {
-        throw new Error('Failed to fetch products')
-      }
-      const data = await response.json()
-
-      if (data && data.length > 0) {
-        articles.value = data.map((product, index) => ({
-          id: product._id || index,
-          number: index + 1,
-          title: product.name || 'Unnamed',
-          author: product.category || 'Unknown category',
-          date: product.unit || 'Unknown unit',
-          journal: product.brand || 'Unknown brand',
-          doi: product.price || 0
-        }))
-      } else {
-        error.value = 'No products found'
-      }
-    } catch (err) {
-      error.value = 'Error connecting to the backend'
-      console.error(err)
-    } finally {
-      loading.value = false
-    }
-  }
+  const total = computed(() => {
+    return cart.value.reduce((sum, item) => sum + (item.doi * item.quantity), 0).toFixed(2)
+  })
 
   const searchArticles = async () => {
     if (searchTerm.value.trim().length < 1) {
-      fetchProducts()
+      articles.value = []
+      error.value = ''
       return
     }
 
@@ -85,9 +58,28 @@ export function useArticles() {
     }
   }
 
-  onMounted(() => {
-    fetchProducts()
-  })
+  const addToCart = (product) => {
+    const existing = cart.value.find(item => item.id === product.id)
+    if (existing) {
+      existing.quantity += 1
+    } else {
+      cart.value.push({
+        ...product,
+        quantity: 1
+      })
+    }
+  }
+
+  const removeFromCart = (productId) => {
+    cart.value = cart.value.filter(item => item.id !== productId)
+  }
+
+  const updateQuantity = (productId, quantity) => {
+    const item = cart.value.find(item => item.id === productId)
+    if (item) {
+      item.quantity = Math.max(1, quantity)
+    }
+  }
 
   const generateReportPDF = () => {
     if (articles.value.length === 0) {
@@ -171,7 +163,12 @@ export function useArticles() {
     articles,
     loading,
     error,
+    cart,
+    total,
     searchArticles,
+    addToCart,
+    removeFromCart,
+    updateQuantity,
     generateReportPDF
   }
 }
