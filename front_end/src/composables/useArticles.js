@@ -13,7 +13,7 @@ export function useArticles() {
     articles.value = []
 
     try {
-      const response = await fetch('http://localhost:3000/api/total')
+      const response = await fetch('https://exam3-back.onrender.com')
       if (!response.ok) {
         throw new Error('Failed to fetch products')
       }
